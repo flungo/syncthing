@@ -35,7 +35,7 @@ import (
 
 var l = logger.DefaultLogger
 
-const CurrentVersion = 7
+const CurrentVersion = 8
 
 type Configuration struct {
 	Version        int                   `xml:"version,attr"`
@@ -43,6 +43,7 @@ type Configuration struct {
 	Devices        []DeviceConfiguration `xml:"device"`
 	GUI            GUIConfiguration      `xml:"gui"`
 	Options        OptionsConfiguration  `xml:"options"`
+	Defaults       DefaultsConfiguration `xml:"defaults"`
 	IgnoredDevices []protocol.DeviceID   `xml:"ignoredDevice"`
 	XMLName        xml.Name              `xml:"configuration" json:"-"`
 
@@ -198,6 +199,14 @@ type GUIConfiguration struct {
 	Password string `xml:"password,omitempty"`
 	UseTLS   bool   `xml:"tls,attr"`
 	APIKey   string `xml:"apikey,omitempty"`
+}
+
+type DefaultsConfiguration struct {
+	Ignores IgnoresConfiguration `xml:"ignores"`
+}
+
+type IgnoresConfiguration struct {
+	Ignore []string `xml:"ignore,omitempty"`
 }
 
 func New(myID protocol.DeviceID) Configuration {
