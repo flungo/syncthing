@@ -209,6 +209,19 @@ type IgnoresConfiguration struct {
 	Ignore []string `xml:"ignore,omitempty"`
 }
 
+var defaultIgnores = [...]string{
+	".DS_Store",
+	".DS_Store?",
+	"._*",
+	".Spotlight-V100",
+	".Trashes",
+	".Trash-*",
+	"desktop.ini",
+	"ehthumbs.db",
+	"lost+found",
+	"Thumbs.db",
+}
+
 func New(myID protocol.DeviceID) Configuration {
 	var cfg Configuration
 	cfg.Version = CurrentVersion
@@ -217,6 +230,7 @@ func New(myID protocol.DeviceID) Configuration {
 	setDefaults(&cfg)
 	setDefaults(&cfg.Options)
 	setDefaults(&cfg.GUI)
+	setDefaultIgnores(&cfg.Defaults.Ignores)
 
 	cfg.prepare(myID)
 
@@ -335,6 +349,11 @@ func (cfg *Configuration) prepare(myID protocol.DeviceID) {
 		convertV6V7(cfg)
 	}
 
+	// Upgrade to v7 configuration if appropriate
+	if cfg.Version == 7 {
+		convertV7V8(cfg)
+	}
+
 	// Hash old cleartext passwords
 	if len(cfg.GUI.Password) > 0 && cfg.GUI.Password[0] != '$' {
 		hash, err := bcrypt.GenerateFromPassword([]byte(cfg.GUI.Password), 0)
@@ -423,6 +442,12 @@ func ChangeRequiresRestart(from, to Configuration) bool {
 	}
 
 	return false
+}
+
+func convertV7V8(cfg *Configuration) {
+	setDefaultIgnores(&cfg.Defaults.Ignores)
+
+	cfg.Version = 8
 }
 
 func convertV6V7(cfg *Configuration) {
@@ -587,6 +612,13 @@ func setDefaults(data interface{}) error {
 		}
 	}
 	return nil
+}
+
+func setDefaultIgnores(cfg *IgnoresConfiguration) {
+	// Add the default ignores
+	for i := range defaultIgnores {
+		cfg.Ignore[i] = defaultIgnores[i]
+	}
 }
 
 // fillNilSlices sets default value on slices that are still nil.
