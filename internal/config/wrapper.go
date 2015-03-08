@@ -229,6 +229,21 @@ func (w *Wrapper) SetGUI(gui GUIConfiguration) {
 	w.replaces <- w.cfg
 }
 
+// GUI returns the current GUI configuration object.
+func (w *Wrapper) Defaults() DefaultsConfiguration {
+	w.mut.Lock()
+	defer w.mut.Unlock()
+	return w.cfg.Defaults
+}
+
+// SetGUI replaces the current GUI configuration object.
+func (w *Wrapper) SetDefaults(defaults DefaultsConfiguration) {
+	w.mut.Lock()
+	defer w.mut.Unlock()
+	w.cfg.Defaults = defaults
+	w.replaces <- w.cfg
+}
+
 // InvalidateFolder sets the invalid marker on the given folder.
 func (w *Wrapper) InvalidateFolder(id string, err string) {
 	w.mut.Lock()
