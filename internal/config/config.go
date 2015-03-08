@@ -27,6 +27,7 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/calmh/logger"
 	"github.com/syncthing/protocol"
@@ -198,7 +199,7 @@ type FolderDeviceConfiguration struct {
 
 type OptionsConfiguration struct {
 	ListenAddress           []string `xml:"listenAddress" default:"0.0.0.0:22000"`
-	GlobalAnnServers        []string `xml:"globalAnnounceServer" default:"udp4://announce.syncthing.net:22026"`
+	GlobalAnnServers        []string `xml:"globalAnnounceServer" default:"udp4://announce.syncthing.net:22026, udp6://announce-v6.syncthing.net:22026"`
 	GlobalAnnEnabled        bool     `xml:"globalAnnounceEnabled" default:"true"`
 	LocalAnnEnabled         bool     `xml:"localAnnounceEnabled" default:"true"`
 	LocalAnnPort            int      `xml:"localAnnouncePort" default:"21025"`
@@ -354,37 +355,25 @@ func (cfg *Configuration) prepare(myID protocol.DeviceID) {
 	cfg.Options.Deprecated_URDeclined = false
 	cfg.Options.Deprecated_UREnabled = false
 
-	// Upgrade to v1 configuration if appropriate
+	// Upgrade configuration versions as appropriate
 	if cfg.Version == 1 {
 		convertV1V2(cfg)
 	}
-
-	// Upgrade to v3 configuration if appropriate
 	if cfg.Version == 2 {
 		convertV2V3(cfg)
 	}
-
-	// Upgrade to v4 configuration if appropriate
 	if cfg.Version == 3 {
 		convertV3V4(cfg)
 	}
-
-	// Upgrade to v5 configuration if appropriate
 	if cfg.Version == 4 {
 		convertV4V5(cfg)
 	}
-
-	// Upgrade to v6 configuration if appropriate
 	if cfg.Version == 5 {
 		convertV5V6(cfg)
 	}
-
-	// Upgrade to v7 configuration if appropriate
 	if cfg.Version == 6 {
 		convertV6V7(cfg)
 	}
-
-	// Upgrade to v7 configuration if appropriate
 	if cfg.Version == 7 {
 		convertV7V8(cfg)
 	}
@@ -481,6 +470,11 @@ func ChangeRequiresRestart(from, to Configuration) bool {
 
 func convertV7V8(cfg *Configuration) {
 	setDefaultIgnores(&cfg.Defaults.Ignores)
+
+	// Add IPv6 announce server
+	if len(cfg.Options.GlobalAnnServers) == 1 && cfg.Options.GlobalAnnServers[0] == "udp4://announce.syncthing.net:22026" {
+		cfg.Options.GlobalAnnServers = append(cfg.Options.GlobalAnnServers, "udp6://announce-v6.syncthing.net:22026")
+	}
 
 	cfg.Version = 8
 }
@@ -670,8 +664,16 @@ func fillNilSlices(data interface{}) error {
 			switch f.Interface().(type) {
 			case []string:
 				if f.IsNil() {
-					rv := reflect.MakeSlice(reflect.TypeOf([]string{}), 1, 1)
-					rv.Index(0).SetString(v)
+					// Treat the default as a comma separated slice
+					vs := strings.Split(v, ",")
+					for i := range vs {
+						vs[i] = strings.TrimSpace(vs[i])
+					}
+
+					rv := reflect.MakeSlice(reflect.TypeOf([]string{}), len(vs), len(vs))
+					for i, v := range vs {
+						rv.Index(i).SetString(v)
+					}
 					f.Set(rv)
 				}
 			}
@@ -690,6 +692,8 @@ func uniqueStrings(ss []string) []string {
 	for k := range m {
 		us = append(us, k)
 	}
+
+	sort.Strings(us)
 
 	return us
 }
