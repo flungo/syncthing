@@ -20,6 +20,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"bufio"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -89,6 +90,40 @@ func (f *FolderConfiguration) CreateMarker() error {
 
 func (f *FolderConfiguration) HasMarker() bool {
 	_, err := os.Stat(filepath.Join(f.Path, ".stfolder"))
+	if err != nil {
+		return false
+	}
+	return true
+}
+
+func (f *FolderConfiguration) CreateIgnore(cfg IgnoresConfiguration) error {
+	if !f.HasIgnore() && len(cfg.Ignore) > 0 {
+		ignore := filepath.Join(f.Path, ".stignore")
+		fd, err := os.Create(ignore)
+		if err != nil {
+			return err
+		}
+		// Populate the .stignore file with the defaults from the configuration
+		bw := bufio.NewWriter(fd)
+		bw.WriteString("// Syncthing ignore file\n")
+		bw.WriteString("//\n")
+		bw.WriteString("// Patterns for files to be ignored from sync.\n")
+		bw.WriteString("// Files that match the patterns here, will be ignored from synchronisation.\n")
+		bw.WriteString("// See: https://github.com/syncthing/syncthing/wiki/Ignoring-Files\n")
+		bw.WriteString("\n")
+		bw.WriteString("// Default ignores\n")
+		for i := range cfg.Ignore {
+			bw.WriteString(cfg.Ignore[i] + "\n")
+		}
+		fd.Close()
+		osutil.HideFile(ignore)
+	}
+
+	return nil
+}
+
+func (f *FolderConfiguration) HasIgnore() bool {
+	_, err := os.Stat(filepath.Join(f.Path, ".stignore"))
 	if err != nil {
 		return false
 	}
