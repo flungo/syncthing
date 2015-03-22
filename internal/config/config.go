@@ -28,7 +28,7 @@ import (
 
 var l = logger.DefaultLogger
 
-const CurrentVersion = 10
+const CurrentVersion = 11
 
 type Configuration struct {
 	Version        int                    `xml:"version,attr" json:"version"`
@@ -232,32 +232,54 @@ type GUIConfiguration struct {
 
 type IgnoresConfiguration struct {
 	Name    string   `xml:"name,attr" json:"name"`
-	Default bool     `xml:"default,attr" json:"default" default:"true"`
+	Default bool     `xml:"default,attr" json:"default" default:"false"`
 	Ignore  []string `xml:"ignore,omitempty"`
 }
 
-var defaultIgnores = [...]string{
+// Define the default ignore object
+var defaultIgnores IgnoresConfiguration
+defaultIgnores.Name = "default"
+defaultIgnores.Default = true
+defaultIgnores.Ignore = [...]string{
+	// OSX
 	".DS_Store",
 	".DS_Store?",
+	".AppleDouble",
+	".LSOverride",
 	"._*",
+	".DocumentRevisions-V100",
+	".fseventsd",
 	".Spotlight-V100",
+	".TemporaryItems",
 	".Trashes",
+	".VolumeIcon.icns",
+	".AppleDB",
+	".AppleDesktop",
+	"Network Trash Folder",
+	"Temporary Items",
+	".apdisk",
+	// Linux
+	"*~",
+	".directory",
 	".Trash-*",
-	"desktop.ini",
-	"ehthumbs.db",
 	"lost+found",
+	// Windows
 	"Thumbs.db",
+	"ehthumbs.db",
+	"Desktop.ini",
+	"desktop.ini",
+	"$RECYCLE.BIN/",
 }
 
 func New(myID protocol.DeviceID) Configuration {
 	var cfg Configuration
 	cfg.Version = CurrentVersion
 	cfg.OriginalVersion = CurrentVersion
+	cfg.Ingores[0] = defaultIgnores
 
 	setDefaults(&cfg)
 	setDefaults(&cfg.Options)
 	setDefaults(&cfg.GUI)
-	setDefaultIgnores(&cfg.Ignores)
 
 	cfg.prepare(myID)
 
@@ -374,6 +396,9 @@ func (cfg *Configuration) prepare(myID protocol.DeviceID) {
 	if cfg.Version == 9 {
 		convertV9V10(cfg)
 	}
+	if cfg.Version == 10 {
+		convertV9V10(cfg)
+	}
 
 	// Hash old cleartext passwords
 	if len(cfg.GUI.Password) > 0 && cfg.GUI.Password[0] != '$' {
@@ -465,9 +490,14 @@ func ChangeRequiresRestart(from, to Configuration) bool {
 	return false
 }
 
-func convertV9V10(cfg *Configuration) {
-	setDefaultIgnores(&cfg.Ignores)
+func convertV10V11(cfg *Configuration) {
+	// Set the config for the default ignores
+	cfg.Ignores[0] = defaultIgnores
+	// TODO: Go through all existing folders and add "@include default"
+	cfg.Version = 11
+}
 
+func convertV9V10(cfg *Configuration) {
 	// Enable auto normalization on existing folders.
 	for i := range cfg.Folders {
 		cfg.Folders[i].AutoNormalize = true
