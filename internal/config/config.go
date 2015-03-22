@@ -8,10 +8,10 @@
 package config
 
 import (
+	"bufio"
 	"encoding/xml"
 	"fmt"
 	"io"
-	"bufio"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -31,14 +31,14 @@ var l = logger.DefaultLogger
 const CurrentVersion = 10
 
 type Configuration struct {
-	Version        int                   `xml:"version,attr" json:"version"`
-	Folders        []FolderConfiguration `xml:"folder" json:"folders"`
-	Devices        []DeviceConfiguration `xml:"device" json:"devices"`
-	GUI            GUIConfiguration      `xml:"gui" json:"gui"`
-	Options        OptionsConfiguration  `xml:"options" json:"options"`
-	Defaults       DefaultsConfiguration `xml:"defaults" json:"defaults"`
-	IgnoredDevices []protocol.DeviceID   `xml:"ignoredDevice" json:"ignoredDevices"`
-	XMLName        xml.Name              `xml:"configuration" json:"-"`
+	Version        int                    `xml:"version,attr" json:"version"`
+	Folders        []FolderConfiguration  `xml:"folder" json:"folders"`
+	Devices        []DeviceConfiguration  `xml:"device" json:"devices"`
+	GUI            GUIConfiguration       `xml:"gui" json:"gui"`
+	Options        OptionsConfiguration   `xml:"options" json:"options"`
+	Ignores        []IgnoresConfiguration `xml:"ignores" json:"ignores"`
+	IgnoredDevices []protocol.DeviceID    `xml:"ignoredDevice" json:"ignoredDevices"`
+	XMLName        xml.Name               `xml:"configuration" json:"-"`
 
 	OriginalVersion         int                   `xml:"-" json:"-"` // The version we read from disk, before any conversion
 	Deprecated_Repositories []FolderConfiguration `xml:"repository" json:"-"`
@@ -230,12 +230,10 @@ type GUIConfiguration struct {
 	APIKey   string `xml:"apikey,omitempty" json:"apiKey"`
 }
 
-type DefaultsConfiguration struct {
-	Ignores IgnoresConfiguration `xml:"ignores"`
-}
-
 type IgnoresConfiguration struct {
-	Ignore []string `xml:"ignore,omitempty"`
+	Name    string   `xml:"name,attr" json:"name"`
+	Default bool     `xml:"default,attr" json:"default" default:"true"`
+	Ignore  []string `xml:"ignore,omitempty"`
 }
 
 var defaultIgnores = [...]string{
@@ -259,7 +257,7 @@ func New(myID protocol.DeviceID) Configuration {
 	setDefaults(&cfg)
 	setDefaults(&cfg.Options)
 	setDefaults(&cfg.GUI)
-	setDefaultIgnores(&cfg.Defaults.Ignores)
+	setDefaultIgnores(&cfg.Ignores)
 
 	cfg.prepare(myID)
 
@@ -468,7 +466,7 @@ func ChangeRequiresRestart(from, to Configuration) bool {
 }
 
 func convertV9V10(cfg *Configuration) {
-	setDefaultIgnores(&cfg.Defaults.Ignores)
+	setDefaultIgnores(&cfg.Ignores)
 
 	// Enable auto normalization on existing folders.
 	for i := range cfg.Folders {
