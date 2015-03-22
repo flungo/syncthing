@@ -221,17 +221,17 @@ func (w *Wrapper) SetGUI(gui GUIConfiguration) {
 }
 
 // GUI returns the current GUI configuration object.
-func (w *Wrapper) Defaults() DefaultsConfiguration {
+func (w *Wrapper) Ignores() []IgnoresConfiguration {
 	w.mut.Lock()
 	defer w.mut.Unlock()
-	return w.cfg.Defaults
+	return w.cfg.Ignores
 }
 
 // SetGUI replaces the current GUI configuration object.
-func (w *Wrapper) SetDefaults(defaults DefaultsConfiguration) {
+func (w *Wrapper) SetIgnores(ignores []IgnoresConfiguration) {
 	w.mut.Lock()
 	defer w.mut.Unlock()
-	w.cfg.Defaults = defaults
+	w.cfg.Ignores = ignores
 	w.replaces <- w.cfg
 }
 

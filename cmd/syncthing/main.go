@@ -711,7 +711,7 @@ nextFolder:
 			}
 			err = folder.CreateMarker()
 			if err != nil && !folder.HasIgnore() {
-				folder.CreateIgnore(cfg.Defaults().Ignores)
+				folder.CreateIgnore(cfg.Ignores())
 			}
 		} else if !folder.HasMarker() {
 			// If we don't have any files in the index, and the path does exist
@@ -720,7 +720,7 @@ nextFolder:
 			// Assume that if the marker was missing, and the ignore file does
 			// not exist that the default ignore file needs creating.
 			if !folder.HasIgnore() {
-				folder.CreateIgnore(cfg.Defaults().Ignores)
+				folder.CreateIgnore(cfg.Ignores())
 			}
 		}
 
