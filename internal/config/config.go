@@ -12,6 +12,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -89,28 +90,59 @@ func (f *FolderConfiguration) HasMarker() bool {
 	return true
 }
 
-func (f *FolderConfiguration) CreateIgnore(cfg IgnoresConfiguration) error {
-	if !f.HasIgnore() && len(cfg.Ignore) > 0 {
-		ignore := filepath.Join(f.Path, ".stignore")
-		fd, err := os.Create(ignore)
+func GetDefaultIgnores(cfg []IgnoresConfiguration) []IgnoresConfiguration {
+	var defaults []IgnoresConfiguration
+	for _, ignore := range cfg {
+		if ignore.Default {
+			defaults = append(defaults, ignore)
+		}
+	}
+	return defaults
+}
+
+func (f *FolderConfiguration) CreateIgnore(cfg []IgnoresConfiguration) error {
+	ignore := filepath.Join(f.Path, ".stignore")
+	defaults := GetDefaultIgnores(cfg)
+
+	// If the file exists read the contents into memory to append back to the new file
+	var contents []byte
+	var err error
+	if f.HasIgnore() {
+		contents, err = ioutil.ReadFile(ignore)
 		if err != nil {
 			return err
 		}
-		// Populate the .stignore file with the defaults from the configuration
-		bw := bufio.NewWriter(fd)
-		bw.WriteString("// Syncthing ignore file\n")
-		bw.WriteString("//\n")
-		bw.WriteString("// Patterns for files to be ignored from sync.\n")
-		bw.WriteString("// Files that match the patterns here, will be ignored from synchronisation.\n")
-		bw.WriteString("// See: https://github.com/syncthing/syncthing/wiki/Ignoring-Files\n")
-		bw.WriteString("\n")
-		bw.WriteString("// Default ignores\n")
-		for i := range cfg.Ignore {
-			bw.WriteString(cfg.Ignore[i] + "\n")
-		}
-		fd.Close()
-		osutil.HideFile(ignore)
 	}
+
+	// Create the file truncating if already exists
+	fd, err := os.Create(ignore)
+	if err != nil {
+		return err
+	}
+
+	// Write a header and defaults to file
+	bw := bufio.NewWriter(fd)
+	bw.WriteString("// Syncthing ignore file\n")
+	bw.WriteString("//\n")
+	bw.WriteString("// Patterns for files to be ignored from sync.\n")
+	bw.WriteString("// Files that match the patterns here, will be ignored from synchronisation.\n")
+	bw.WriteString("// See: https://github.com/syncthing/syncthing/wiki/Ignoring-Files\n")
+	if cap(defaults) > 0 {
+		bw.WriteString("\n")
+		bw.WriteString("// Include default ignores (see configuration)\n")
+		for _, ignConf := range defaults {
+			bw.WriteString("@include " + ignConf.Name)
+		}
+	}
+	if contents != nil {
+		bw.WriteString("\n\n")
+		bw.Write(contents)
+	}
+	bw.Flush()
+
+	fd.Close()
+
+	osutil.HideFile(ignore)
 
 	return nil
 }
@@ -237,45 +269,46 @@ type IgnoresConfiguration struct {
 }
 
 // Define the default ignore object
-var defaultIgnores IgnoresConfiguration
-defaultIgnores.Name = "default"
-defaultIgnores.Default = true
-defaultIgnores.Ignore = [...]string{
-	// OSX
-	".DS_Store",
-	".DS_Store?",
-	".AppleDouble",
-	".LSOverride",
-	"._*",
-	".DocumentRevisions-V100",
-	".fseventsd",
-	".Spotlight-V100",
-	".TemporaryItems",
-	".Trashes",
-	".VolumeIcon.icns",
-	".AppleDB",
-	".AppleDesktop",
-	"Network Trash Folder",
-	"Temporary Items",
-	".apdisk",
-	// Linux
-	"*~",
-	".directory",
-	".Trash-*",
-	"lost+found",
-	// Windows
-	"Thumbs.db",
-	"ehthumbs.db",
-	"Desktop.ini",
-	"desktop.ini",
-	"$RECYCLE.BIN/",
+var defaultIgnores = IgnoresConfiguration{
+	Name:    "default",
+	Default: true,
+	Ignore: []string{
+		// OSX
+		".DS_Store",
+		".DS_Store?",
+		".AppleDouble",
+		".LSOverride",
+		"._*",
+		".DocumentRevisions-V100",
+		".fseventsd",
+		".Spotlight-V100",
+		".TemporaryItems",
+		".Trashes",
+		".VolumeIcon.icns",
+		".AppleDB",
+		".AppleDesktop",
+		"Network Trash Folder",
+		"Temporary Items",
+		".apdisk",
+		// Linux
+		"*~",
+		".directory",
+		".Trash-*",
+		"lost+found",
+		// Windows
+		"Thumbs.db",
+		"ehthumbs.db",
+		"Desktop.ini",
+		"desktop.ini",
+		"$RECYCLE.BIN/",
+	},
 }
 
 func New(myID protocol.DeviceID) Configuration {
 	var cfg Configuration
 	cfg.Version = CurrentVersion
 	cfg.OriginalVersion = CurrentVersion
-	cfg.Ingores[0] = defaultIgnores
+	cfg.Ignores[0] = defaultIgnores
 
 	setDefaults(&cfg)
 	setDefaults(&cfg.Options)
@@ -683,13 +716,6 @@ func setDefaults(data interface{}) error {
 		}
 	}
 	return nil
-}
-
-func setDefaultIgnores(cfg *IgnoresConfiguration) {
-	// Add the default ignores
-	for i := range defaultIgnores {
-		cfg.Ignore[i] = defaultIgnores[i]
-	}
 }
 
 // fillNilSlices sets default value on slices that are still nil.
