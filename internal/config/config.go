@@ -526,7 +526,10 @@ func ChangeRequiresRestart(from, to Configuration) bool {
 func convertV10V11(cfg *Configuration) {
 	// Set the config for the default ignores
 	cfg.Ignores[0] = defaultIgnores
-	// TODO: Go through all existing folders and add "@include default"
+	// Go through all existing folders and add "@include default"
+	for _, folder := range cfg.Folders {
+		folder.CreateIgnore(cfg.Ignores)
+	}
 	cfg.Version = 11
 }
 
