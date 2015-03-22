@@ -430,7 +430,7 @@ func (cfg *Configuration) prepare(myID protocol.DeviceID) {
 		convertV9V10(cfg)
 	}
 	if cfg.Version == 10 {
-		convertV9V10(cfg)
+		convertV10V11(cfg)
 	}
 
 	// Hash old cleartext passwords
